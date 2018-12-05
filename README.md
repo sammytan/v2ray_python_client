@@ -31,6 +31,8 @@ client.py 的扩展文件，这个的目标是实现所有的api接口，但是�
 1. add_user
 2. remove_user
 3. get_stats
+4. add_inbound(4,5为[rico93](https://github.com/rico93)贡献)
+5. remove_inbound
 
 
 ## 项目依赖

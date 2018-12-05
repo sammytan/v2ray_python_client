@@ -4,21 +4,42 @@ import sys
 sys.path.append(os.path.dirname(__file__))
 from grpc._channel import _Rendezvous
 from errors import *
-from config import *
 from v2ray.com.core.common.net import port_pb2, address_pb2
 from v2ray.com.core import config_pb2 as core_config_pb2
 from v2ray.com.core.proxy.vmess import account_pb2
-from v2ray.com.core.proxy.vmess.inbound import config_pb2 as vmess_inbound_config_pb2
+from v2ray.com.core.proxy.vmess.inbound import \
+    config_pb2 as vmess_inbound_config_pb2
 from v2ray.com.core.common.protocol import user_pb2
 from v2ray.com.core.common.serial import typed_message_pb2
 from v2ray.com.core.app.proxyman import config_pb2 as proxyman_config_pb2
 from v2ray.com.core.app.proxyman.command import command_pb2
 from v2ray.com.core.app.proxyman.command import command_pb2_grpc
 from v2ray.com.core.app.stats.command import command_pb2 as stats_command_pb2
-from v2ray.com.core.app.stats.command import command_pb2_grpc as stats_command_pb2_grpc
-from v2ray.com.core.proxy.shadowsocks import config_pb2 as shadowsocks_server_config_pb2
+from v2ray.com.core.app.stats.command import \
+    command_pb2_grpc as stats_command_pb2_grpc
+from v2ray.com.core.proxy.shadowsocks import \
+    config_pb2 as shadowsocks_server_config_pb2
 import uuid
 import grpc
+
+
+# ss inbound 变量
+UNKNOWN = 0
+AES_128_CFB = 1
+AES_256_CFB = 2
+CHACHA20 = 3
+CHACHA20_IETF = 4
+AES_128_GCM = 5
+AES_256_GCM = 6
+CHACHA20_POLY1305 = 7
+NONE = 8
+Auto = 0
+Disabled = 1
+Enabled = 2
+
+RawTCP = 1
+TCP = 2
+UDP = 3
 
 
 def to_typed_message(message):
@@ -75,11 +96,12 @@ class SSInbound(Proxy):
             shadowsocks_server_config_pb2.ServerConfig(
                 user=user_pb2.User(
                     email=u['email'],
-                    account=to_typed_message(shadowsocks_server_config_pb2.Account(
-                        password=u['password'],
-                        cipher_type=u['cipher_type'],
-                        ota=Auto,
-                    ))
+                    account=to_typed_message(
+                        shadowsocks_server_config_pb2.Account(
+                            password=u['password'],
+                            cipher_type=u['cipher_type'],
+                            ota=Auto,
+                        ))
                 ),
 
                 udp_enabled=1,
@@ -93,35 +115,50 @@ class Client(object):
         print(f"{address}:{port}")
         self._channel = grpc.insecure_channel(f"{address}:{port}")
 
-    def get_user_traffic_downlink(self, email, reset=False):
+    def _get_stats(self, email=None, tag=None, uplink=True, reset=False):
+        if email:
+            s = ''.join(['user>>>', email, '>>>traffic>>>'])
+        else:
+            s = ''.join(['inbound>>>', tag, '>>>traffic>>>'])
+        if uplink:
+            s = s + '>>>uplink'
+        else:
+            s = s + '>>>downlink'
+        stub = stats_command_pb2_grpc.StatsServiceStub(self._channel)
+
+        resp = stub.GetStats(
+            stats_command_pb2.GetStatsRequest(
+                name=s,
+                reset=reset
+            )
+        )
+        return resp
+
+    def get_user_traffic_uplink_downlink(self, email, uplink=True,
+                                         reset=False):
         """
         获取用户下行流量，单位：字节
         若该email未产生流量或email有误，返回None
         :param email: 邮箱
         :param reset: 是否重置计数器
         """
-        stub = stats_command_pb2_grpc.StatsServiceStub(self._channel)
         try:
-            return stub.GetStats(stats_command_pb2.GetStatsRequest(
-                name=f"user>>>{email}>>>traffic>>>downlink",
-                reset=reset
-            )).stat.value
+            return self._get_stats(email=email, uplink=uplink,
+                                   reset=reset).stat.value
         except grpc.RpcError:
             return None
 
-    def get_user_traffic_uplink(self, email, reset=False):
+    def get_tag_traffic_uplink_downlink(self, tag, uplink=True,
+                                        reset=False):
         """
-        获取用户上行流量，单位：字节
-        若该email未产生流量或email有误，返回None
-        :param email: 邮箱
+        获取inbound得流量信息，单位：字节
+        若该tag未产生流量或tag有误，返回None
+        :param tag: 邮箱
         :param reset: 是否重置计数器
         """
-        stub = stats_command_pb2_grpc.StatsServiceStub(self._channel)
         try:
-            return stub.GetStats(stats_command_pb2.GetStatsRequest(
-                name=f"user>>>{email}>>>traffic>>>uplink",
-                reset=reset
-            )).stat.value
+            return self._get_stats(tag=tag, uplink=uplink,
+                                   reset=reset).stat.value
         except grpc.RpcError:
             return None
 
@@ -261,7 +298,7 @@ if __name__ == '__main__':
 
     for i in range(1):
         uid = uuid.uuid4().hex
-        email = str(i) + 'tyf@email.com'
+        email = str(i) + '*@email.com'
         password = "rico93.win"
         cipher_type = AES_256_CFB
         data = {}
@@ -270,7 +307,6 @@ if __name__ == '__main__':
         data['user_id'] = uid
         data['cipher_type'] = cipher_type
         ss = SSInbound(data)
-        #client.add_inbound(tag="SS_"+data['email'],address="0.0.0.0",port=1234,proxy=ss)
-        client.remove_inbound(tag="SS_"+data['email'])
+        # client.add_inbound(tag="SS_"+data['email'],address="0.0.0.0",port=1234,proxy=ss)
+        client.remove_inbound(tag="SS_" + data['email'])
         print(ss)
-
