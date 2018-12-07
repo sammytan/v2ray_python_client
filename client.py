@@ -8,35 +8,57 @@ from config import *
 from v2ray.com.core.common.net import port_pb2, address_pb2
 from v2ray.com.core import config_pb2 as core_config_pb2
 from v2ray.com.core.proxy.vmess import account_pb2
-from v2ray.com.core.proxy.vmess.inbound import config_pb2 as vmess_inbound_config_pb2
+from v2ray.com.core.proxy.vmess.inbound import \
+    config_pb2 as vmess_inbound_config_pb2
 from v2ray.com.core.common.protocol import user_pb2
 from v2ray.com.core.common.serial import typed_message_pb2
 from v2ray.com.core.app.proxyman import config_pb2 as proxyman_config_pb2
 from v2ray.com.core.app.proxyman.command import command_pb2
 from v2ray.com.core.app.proxyman.command import command_pb2_grpc
 from v2ray.com.core.app.stats.command import command_pb2 as stats_command_pb2
-from v2ray.com.core.app.stats.command import command_pb2_grpc as stats_command_pb2_grpc
-from v2ray.com.core.proxy.shadowsocks import config_pb2 as shadowsocks_server_config_pb2
-from v2ray.com.core.transport.internet.headers.wechat import config_pb2 as header_wechat_config_pb2
-from v2ray.com.core.transport.internet.headers.srtp import config_pb2 as header_srtp_config_pb2
-from v2ray.com.core.transport.internet.headers.utp import config_pb2 as header_utp_config_pb2
-from v2ray.com.core.transport.internet.headers.wireguard import config_pb2 as header_wiregurad_config_pb2
+from v2ray.com.core.app.stats.command import \
+    command_pb2_grpc as stats_command_pb2_grpc
+from v2ray.com.core.proxy.shadowsocks import \
+    config_pb2 as shadowsocks_server_config_pb2
+from v2ray.com.core.transport.internet.headers.wechat import \
+    config_pb2 as header_wechat_config_pb2
+from v2ray.com.core.transport.internet.headers.srtp import \
+    config_pb2 as header_srtp_config_pb2
+from v2ray.com.core.transport.internet.headers.utp import \
+    config_pb2 as header_utp_config_pb2
+from v2ray.com.core.transport.internet.headers.wireguard import \
+    config_pb2 as header_wiregurad_config_pb2
 from v2ray.com.core.transport.internet.kcp import config_pb2 as kcp_config_pb2
-from v2ray.com.core.transport.internet.headers.tls import config_pb2 as header_tls_config_pb2
-from v2ray.com.core.transport.internet.headers.noop import config_pb2 as header_noop_config_pb2
+from v2ray.com.core.transport.internet.headers.tls import \
+    config_pb2 as header_tls_config_pb2
+from v2ray.com.core.transport.internet.headers.noop import \
+    config_pb2 as header_noop_config_pb2
 
 import v2ray.com.core.transport.internet.config_pb2 as internet_config_pb2
 import v2ray.com.core.transport.internet as internet
 
-
-from v2ray.com.core.transport.internet.websocket import config_pb2 as websocket_config_pb2
+from v2ray.com.core.transport.internet.websocket import \
+    config_pb2 as websocket_config_pb2
 import uuid
 import grpc
-kcp_headers_config = {"wechat-video":header_wechat_config_pb2.VideoConfig(),"srtp":header_srtp_config_pb2.Config(),
-                      'utp':header_utp_config_pb2.Config(),
-               'wireguard':header_wiregurad_config_pb2.WireguardConfig(),
-                      'dtls':header_tls_config_pb2.PacketConfig(),
-                      "noop":header_noop_config_pb2.Config()}
+
+kcp_headers_config = {"wechat-video": header_wechat_config_pb2.VideoConfig(),
+                      "srtp": header_srtp_config_pb2.Config(),
+                      'utp': header_utp_config_pb2.Config(),
+                      'wireguard': header_wiregurad_config_pb2.WireguardConfig(),
+                      'dtls': header_tls_config_pb2.PacketConfig(),
+                      "noop": header_noop_config_pb2.Config()}
+
+CIPHER_TYPE_MAP = {"aes-256-cfb": shadowsocks_server_config_pb2.AES_256_CFB,
+                   "aes-128-cfb": shadowsocks_server_config_pb2.AES_128_CFB,
+                   "aes-128-gcm": shadowsocks_server_config_pb2.AES_128_GCM,
+                   "aes-256-gcm": shadowsocks_server_config_pb2.AES_256_GCM,
+                   "chacha20": shadowsocks_server_config_pb2.CHACHA20,
+                   "chacah-ietf": shadowsocks_server_config_pb2.CHACHA20_IETF,
+                   'chacha20-ploy1305': shadowsocks_server_config_pb2.CHACHA20_POLY1305,
+                   "chacha20-ietf-poly1305": shadowsocks_server_config_pb2.CHACHA20_POLY1305,
+                   }
+
 
 def to_typed_message(message):
     return typed_message_pb2.TypedMessage(
@@ -54,6 +76,7 @@ class Proxy(object):
 
     def __init__(self):
         self.message = None
+
 
 class VMessInbound(Proxy):
     """VMess传入连接配置"""
@@ -91,11 +114,12 @@ class SSInbound(Proxy):
             shadowsocks_server_config_pb2.ServerConfig(
                 user=user_pb2.User(
                     email=u['email'],
-                    account=to_typed_message(shadowsocks_server_config_pb2.Account(
-                        password=u['password'],
-                        cipher_type=u['cipher_type'],
-                        ota=Auto,
-                    ))
+                    account=to_typed_message(
+                        shadowsocks_server_config_pb2.Account(
+                            password=u['password'],
+                            cipher_type=u['cipher_type'],
+                            ota=Auto,
+                        ))
                 ),
 
                 udp_enabled=1,
@@ -103,40 +127,43 @@ class SSInbound(Proxy):
             )
         )
 
+
 class StreamSetting(object):
     "Stream Setting"
+
     def __init__(self):
-        self.streamconfig =None
+        self.streamconfig = None
 
 
 class Websocket(StreamSetting):
-    def __init__(self,path="/"):
-        super(Websocket,self).__init__()
+    def __init__(self, path="/"):
+        super(Websocket, self).__init__()
         self.streamconfig = internet_config_pb2.StreamConfig(
-            protocol = internet_config_pb2.WebSocket,
-            transport_settings = [
+            protocol=internet_config_pb2.WebSocket,
+            transport_settings=[
                 internet_config_pb2.TransportConfig(
-                    protocol = internet_config_pb2.WebSocket,
-                    settings = to_typed_message(
+                    protocol=internet_config_pb2.WebSocket,
+                    settings=to_typed_message(
                         websocket_config_pb2.Config(
-                            path = path,
-                            header = [
+                            path=path,
+                            header=[
                                 websocket_config_pb2.Header(
-                                    key = "Hosts",
-                                    value = "v2ray.com"
+                                    key="Hosts",
+                                    value="v2ray.com"
                                 )
                             ]
                         )
                     )
 
-
                 )
             ]
         )
+
+
 class Kcp(StreamSetting):
 
-
-    def __init__(self,header_key =None,readbuffer_size=4096,writebuffer=4096,uplinkcapacity=20,downlinkcapacity=20):
+    def __init__(self, header_key=None, readbuffer_size=4096, writebuffer=4096,
+                 uplinkcapacity=20, downlinkcapacity=20):
         """
         :param users: 包含'email','level','user_id','alter_id'字段的字典
         """
@@ -145,10 +172,10 @@ class Kcp(StreamSetting):
             header = kcp_headers_config[header_key]
         super(Kcp, self).__init__()
         self.streamconfig = internet_config_pb2.StreamConfig(
-                    protocol =internet_config_pb2.MKCP,
-            transport_settings = [
+            protocol=internet_config_pb2.MKCP,
+            transport_settings=[
                 internet_config_pb2.TransportConfig(
-                        protocol=internet_config_pb2.MKCP,
+                    protocol=internet_config_pb2.MKCP,
                     settings=to_typed_message(
                         kcp_config_pb2.Config(
                             header_config=to_typed_message(
@@ -157,11 +184,12 @@ class Kcp(StreamSetting):
                         )
 
                     )
-            )
+                )
 
             ]
 
         )
+
 
 class Client(object):
     def __init__(self, address, port):
@@ -256,7 +284,8 @@ class Client(object):
             else:
                 raise V2RayError(details)
 
-    def add_inbound(self, tag, address, port, proxy: Proxy,streamsetting: StreamSetting =None):
+    def add_inbound(self, tag, address, port, proxy: Proxy,
+                    streamsetting: StreamSetting = None):
         """
         增加传入连接
         :param tag: 此传入连接的标识
@@ -333,7 +362,9 @@ if __name__ == '__main__':
         l.append(data)
     vmess_inbound = VMessInbound(l)
     client.remove_inbound(tag='rico11')
-    client.add_inbound(tag="rico11",address="0.0.0.0",port=12344,proxy=vmess_inbound,streamsetting=Kcp(header_key="wireguard"))
+    client.add_inbound(tag="rico11", address="0.0.0.0", port=12344,
+                       proxy=vmess_inbound,
+                       streamsetting=Kcp(header_key="wireguard"))
     print(l)
     # for i in range(1):
     #     uid = uuid.uuid4().hex
@@ -350,4 +381,3 @@ if __name__ == '__main__':
     #     client.add_inbound(tag="SS_"+data['email'],address="0.0.0.0",port=1234,proxy=ss)
     #
     #     print(ss)
-
