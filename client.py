@@ -1,10 +1,11 @@
 import os
 import sys
 
-sys.path.append(os.path.dirname(__file__))
+import uuid
+import grpc
 from grpc._channel import _Rendezvous
-from errors import *
-from config import *
+import v2ray.com.core.transport.internet.config_pb2 as internet_config_pb2
+import v2ray.com.core.transport.internet as internet
 from v2ray.com.core.common.net import port_pb2, address_pb2
 from v2ray.com.core import config_pb2 as core_config_pb2
 from v2ray.com.core.proxy.vmess import account_pb2
@@ -33,14 +34,12 @@ from v2ray.com.core.transport.internet.headers.tls import \
     config_pb2 as header_tls_config_pb2
 from v2ray.com.core.transport.internet.headers.noop import \
     config_pb2 as header_noop_config_pb2
-
-import v2ray.com.core.transport.internet.config_pb2 as internet_config_pb2
-import v2ray.com.core.transport.internet as internet
-
 from v2ray.com.core.transport.internet.websocket import \
     config_pb2 as websocket_config_pb2
-import uuid
-import grpc
+
+from errors import *
+
+sys.path.append(os.path.dirname(__file__))
 
 kcp_headers_config = {"wechat-video": header_wechat_config_pb2.VideoConfig(),
                       "srtp": header_srtp_config_pb2.Config(),
@@ -58,6 +57,13 @@ CIPHER_TYPE_MAP = {"aes-256-cfb": shadowsocks_server_config_pb2.AES_256_CFB,
                    'chacha20-ploy1305': shadowsocks_server_config_pb2.CHACHA20_POLY1305,
                    "chacha20-ietf-poly1305": shadowsocks_server_config_pb2.CHACHA20_POLY1305,
                    }
+
+Auto = 0
+Disabled = 1
+Enabled = 2
+RawTCP = 1
+TCP = 2
+UDP = 3
 
 
 def to_typed_message(message):
