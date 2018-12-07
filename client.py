@@ -58,9 +58,22 @@ CIPHER_TYPE_MAP = {"aes-256-cfb": shadowsocks_server_config_pb2.AES_256_CFB,
                    "chacha20-ietf-poly1305": shadowsocks_server_config_pb2.CHACHA20_POLY1305,
                    }
 
+
+# ss inbound 变量
+UNKNOWN = 0
+AES_128_CFB = 1
+AES_256_CFB = 2
+CHACHA20 = 3
+CHACHA20_IETF = 4
+AES_128_GCM = 5
+AES_256_GCM = 6
+CHACHA20_POLY1305 = 7
+NONE = 8
 Auto = 0
 Disabled = 1
 Enabled = 2
+
+
 RawTCP = 1
 TCP = 2
 UDP = 3
@@ -202,35 +215,50 @@ class Client(object):
         print(f"{address}:{port}")
         self._channel = grpc.insecure_channel(f"{address}:{port}")
 
-    def get_user_traffic_downlink(self, email, reset=False):
+    def _get_stats(self, email=None, tag=None, uplink=True, reset=False):
+        if email:
+            s = ''.join(['user>>>', email, '>>>traffic>>>'])
+        else:
+            s = ''.join(['inbound>>>', tag, '>>>traffic>>>'])
+        if uplink:
+            s = s + '>>>uplink'
+        else:
+            s = s + '>>>downlink'
+        stub = stats_command_pb2_grpc.StatsServiceStub(self._channel)
+
+        resp = stub.GetStats(
+            stats_command_pb2.GetStatsRequest(
+                name=s,
+                reset=reset
+            )
+        )
+        return resp
+
+    def get_user_traffic_uplink_downlink(self, email, uplink=True,
+                                         reset=False):
         """
         获取用户下行流量，单位：字节
         若该email未产生流量或email有误，返回None
         :param email: 邮箱
         :param reset: 是否重置计数器
         """
-        stub = stats_command_pb2_grpc.StatsServiceStub(self._channel)
         try:
-            return stub.GetStats(stats_command_pb2.GetStatsRequest(
-                name=f"user>>>{email}>>>traffic>>>downlink",
-                reset=reset
-            )).stat.value
+            return self._get_stats(email=email, uplink=uplink,
+                                   reset=reset).stat.value
         except grpc.RpcError:
             return None
 
-    def get_user_traffic_uplink(self, email, reset=False):
+    def get_tag_traffic_uplink_downlink(self, tag, uplink=True,
+                                        reset=False):
         """
-        获取用户上行流量，单位：字节
-        若该email未产生流量或email有误，返回None
-        :param email: 邮箱
+        获取inbound得流量信息，单位：字节
+        若该tag未产生流量或tag有误，返回None
+        :param tag: 邮箱
         :param reset: 是否重置计数器
         """
-        stub = stats_command_pb2_grpc.StatsServiceStub(self._channel)
         try:
-            return stub.GetStats(stats_command_pb2.GetStatsRequest(
-                name=f"user>>>{email}>>>traffic>>>uplink",
-                reset=reset
-            )).stat.value
+            return self._get_stats(tag=tag, uplink=uplink,
+                                   reset=reset).stat.value
         except grpc.RpcError:
             return None
 
@@ -358,7 +386,7 @@ if __name__ == '__main__':
 
         # client.remove_user(inbound_tag=INBOUND_TAG,email=email)
 
-        print(client.get_user_traffic_downlink(email=email))
+        print(client.get_user_traffic_uplink_downlink(email))
 
         data = {}
         data['user_id'] = uid
