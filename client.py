@@ -221,9 +221,9 @@ class Client(object):
         else:
             s = ''.join(['inbound>>>', tag, '>>>traffic>>>'])
         if uplink:
-            s = s + '>>>uplink'
+            s = s + 'uplink'
         else:
-            s = s + '>>>downlink'
+            s = s + 'downlink'
         stub = stats_command_pb2_grpc.StatsServiceStub(self._channel)
 
         resp = stub.GetStats(
